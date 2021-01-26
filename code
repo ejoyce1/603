@@ -1,0 +1,528 @@
+#code in the other persons file is what we used for the actual numbers in the project writeup 
+# other code was primary code 
+
+size(face)
+face_neutral =  face(:,:,1:3:end);
+face_smile = face(:,:,2:3:end);
+face_illum = face(:,:,3:3:end);
+
+%look at the faces of neutral people
+
+figure;
+colormap gray 
+for j = 1:20
+    subplot(4,5,j);
+    imagesc(face_neutral(:,:,j));
+end
+
+%look at the faces of smile people
+for j = 1:20
+    subplot(4,5,j);
+    imagesc(face_smile(:,:,j));
+end
+
+for j = 1:20
+    subplot(4,5,j);
+    imagesc(face_illum(:,:,j));
+end
+
+
+
+%%fisher linear
+% this isnt really necessary, it just shows that we cant use it 
+
+[d1,d2,n] = size(face_neutral);
+X1 = zeros(n,d1*d2);
+X2 = zeros(n,d1*d2);
+for j = 1 : n 
+    aux =face_neutral(:,:,j);
+    X1(j,:) = aux(:)';
+    aux = face_smile(:,:,j);
+    X2(j,:) = aux(:)';
+end 
+n1 = n;
+n2 = n;
+m1 = mean(X1,1);
+m2 = mean(X2,1);
+Xc1 = X1-ones(n1,1)*m1;
+S1 = Xc1'*Xc1;
+Xc2 = X2-ones(n2,1)*m2;
+S2 = Xc2'*Xc2;
+Sw = S1+S2
+Sb = (m1-m2)'*(m1-m2);
+[W,lam0] = eig(Sb,Sw);
+lam = diag(lam0);
+[lam,isort] = sort(lam, 'descend')
+
+
+
+figure;
+hold on; grid;
+plot(lam,'.','Markersize',15);
+    
+
+
+W = W(:,isort);
+w = W(:,1);
+figure; hold on;
+grid;
+X = [X1;X2];
+D1 =  1:n1;
+D2 = n1+1:n1+n2;
+y = X*w;
+plot(y(D1),zeros(n1,1),'s','Color','none',...
+    'MarkerEdgeColor','k','Markersize',5);
+plot(y(D2), ones(n2,1), '<','color','none',...
+    "MarkerEdgeColor",'r','MarkerSize',5);
+
+%look at the graph what does it tell us 
+
+%%singular value decomposition stuff
+
+[U,Sig,V] = svd(X','econ')
+nPCA = 100;
+Y = X*U(:,1:nPCA);
+
+%did lots of different tests on the nPCA value including 
+%having it at like 10,50 etc
+
+figure;
+hold on;
+grid;
+plot3(Y(D1,1),Y(D1,2),Y(D1,3),'.',"MarkerSize",20,'color','c');
+plot3(Y(D2,1),Y(D2,2),Y(D2,3),'.',"MarkerSize",20,'color','r');
+
+view(3);
+
+size(Y)
+
+%%Bayes Theory
+
+
+Y1 = Y(D1,:);
+Y2 = Y(D2,:); 
+mu1 = mean(Y1,1);
+
+%this is where we saw the affect of changing the nPCA value 
+
+mu2 = mean(Y2,1);
+fprintf('norm(mu1-mu2)=%d/n',norm(mu1-mu2));
+
+"The norm following we obtain after assigning nPCA to 50 is " 
+
+Y1c =  Y1-ones(n1,1)*mu1;
+Y2c =  Y2-ones(n2,1)*mu2;
+S1 = Y1c'*Y1c/n1
+S2 = Y2c'*Y2c/n2
+figure;
+imagesc(S1);
+colorbar;
+
+figure;
+imagesc(S2);
+colorbar;
+
+
+%Ntrain = 150;
+%Ntest = n-Ntrain;
+%train1 = 1:Ntrain;
+%train2 = (n+1):(n+Ntrain);
+%test1 = (Ntrain+1):n;
+%test2 = (n+Ntrain+1): (2*n);
+%train_idx = [train1,train2];
+%test_idx = [test1,test2];
+%Ytrain = Y(train_idx,:);
+%Ytest = Y(test_idx,:);
+
+KNN = 5;
+
+%here we tested a lot of different values as seen in the report and the
+%main code file
+
+
+
+labels = zeros(length(test_idx),1);
+for j = 1 : length(test_idx)
+    ytest =Ytest(j,:);
+    dist_sq = sum((Ytrain - ones(size(Ytrain,1),1)*ytest).^2,2);
+    [dsort,isort] = sort(dist_sq,'ascend');
+    k_near_neib = isort(1:KNN);
+    knn_neutral = find(k_near_neib<=Ntrain);
+    knn_smile = find(k_near_neib>Ntrain);
+    if length(knn_neutral)> length(knn_smile)
+        labels(j) =1;
+    else
+        labels(j) = -1;
+      
+    end
+end
+
+face_neutral = face(:,:,1:3:end);
+face_exp = face(:,:,2:3:end);
+face_illum = face(:,:,3:3:end);
+
+
+
+
+
+
+
+
+X1 = zeros(200,504);
+X2 = zeros(200,504);
+X3 = zeros(200,504);
+for j=1:200
+    aux = face_neutral(:,:,j);
+    X1(j,:) = aux(:)';
+    aux = face_exp(:,:,j);
+    X2(j,:) = aux(:)';
+    aux = face_illum(:,:,j);
+    X3(j,:) = aux(:)';
+end
+
+%for this we made all of the neutral faces 1 and the smile faces 2 
+face_noillum = [X1; X2];
+face = [X1; X2; X3];
+
+class_face_noillum = ones(400, 1);
+class_face = ones(600, 1);
+
+for i=201:400
+    class_face_noillum(i) = 2;
+    class_face(i) = 2;
+end
+
+% PCA for preprocessing faces dataset
+nPCA = 20;
+[U,Sig,V] = svd(face_noillum',"econ");
+Y = face_noillum*U(:,1:nPCA);
+
+[U,Sig,V] = svd(face,"econ");
+Y1 = face*V(:,1:nPCA);
+
+%Add classes to last column 
+Y = [Y class_face_noillum];
+Y1 = [Y1 class_face];
+
+% Split data into test and training sets
+%this was definitly a longer approach that we came up with
+%it was what worked for us so we decided to go with in 
+% we know in class it was presented different but we were having troulbe
+% with that method
+Yneutral_noillum = Y(1:200,:);
+Yexp_noillum = Y(201:400,:);
+Yneutral = Y1(1:200,:);
+Yexp = Y1(201:400,:);
+Yillum = Y1(401:600,:);
+
+n = 180; % the number of observations in training set for each class, no illum
+
+%this is another spot where we had a lot of experimentation, 
+%we mainly tested with 120,140,160,80 to see how it affected the results
+
+% Randomly select n observations from neutral and exp for train,
+% 200-n for test
+k = randperm(200, n);
+train_neutral_noillum  = Yneutral_noillum(k, :);
+r         = true(1,200);
+r(k)      = false;
+test_neutral_noillum = Yneutral_noillum(r, :);
+k = randperm(200, n);
+train_exp_noillum  = Yexp_noillum(k, :);
+r         = true(1,200);
+r(k)      = false;
+test_exp_noillum = Yexp_noillum(r, :);
+
+k = randperm(200, n);
+train_neutral  = Yneutral(k, :);
+r         = true(1,200);
+r(k)      = false;
+test_neutral = Yneutral(r, :);
+k = randperm(200, n);
+train_exp  = Yexp(k, :);
+r         = true(1,200);
+r(k)      = false;
+test_exp = Yexp(r, :);
+k = randperm(200, n);
+train_illum  = Yillum(k, :);
+r         = true(1,200);
+r(k)      = false;
+test_illum = Yillum(r, :);
+
+
+% Combine together for global train and test sets
+train_noillum = [train_neutral_noillum; train_exp_noillum];
+test_noillum = [test_neutral_noillum; test_exp_noillum];
+
+train_allillum = [train_neutral; train_exp; Yillum];
+test = [test_neutral; test_exp];
+
+train = [train_neutral; train_exp];
+test_allillum = [test_neutral; test_exp; Yillum]; 
+
+train_someillum = [train_neutral; train_exp; train_illum];
+test_someillum = [test_neutral; test_exp; test_illum];
+
+% Remove label from last column
+faceclasstrain_noillum = train_noillum(:,[nPCA+1]);
+train_noillum(:,[nPCA+1]) = [];
+faceclasstest_noillum = test_noillum(:,[nPCA+1]);
+test_noillum(:,[nPCA+1]) = [];
+
+faceclasstrain_allillum = train_allillum(:,[nPCA+1]);
+train_allillum(:,[nPCA+1]) = [];
+faceclasstest = test(:,[nPCA+1]);
+test(:,[nPCA+1]) = [];
+
+faceclasstrain = train(:,[nPCA+1]);
+train(:,[nPCA+1]) = [];
+faceclasstest_allillum = test_allillum(:,[nPCA+1]);
+test_allillum(:,[nPCA+1]) = [];
+
+faceclasstrain_someillum = train_someillum(:,[nPCA+1]);
+train_someillum(:,[nPCA+1]) = [];
+faceclasstest_someillum = test_someillum(:,[nPCA+1]);
+test_someillum(:,[nPCA+1]) = [];
+
+%Train KNN predict test set with no illumination
+%we changed this a lot 
+kNN = 15;
+labels1 = zeros(length(faceclasstest_noillum)); %1 if neutral, 2 if exp
+for j=1:length(faceclasstest_noillum)
+    ytest = test_noillum(j,:);
+    dist_sq = sum((train_noillum - ones(size(train_noillum,1),1)*ytest).^2,2);
+    [dsort, isort] = sort(dist_sq,'ascend');
+    k_near_neib = isort(1:kNN);
+    knn_neutral = find(k_near_neib <= n);
+    knn_smile = find(k_near_neib > n);
+    if length(knn_neutral) > length(knn_smile)
+        labels1(j) = 1;
+    else
+        labels1(j) = 2;
+    end
+end
+labels1 = labels1(:,1);
+
+% Count correct labels
+count1 = 0;
+for j=1:length(labels1)
+    if labels1(j) == faceclasstest_noillum(j)
+        count1 = count1 + 1;
+    end
+end
+
+%Train KNN predict test set with all illumination in training
+labels2 = zeros(length(faceclasstest)); %1 if neutral, 2 if exp
+for j=1:length(faceclasstest)
+    ytest = test(j,:);
+    dist_sq = sum((train_allillum - ones(size(train_allillum,1),1)*ytest).^2,2);
+    [dsort, isort] = sort(dist_sq,'ascend');
+    k_near_neib = isort(1:kNN);
+    knn_neutral = find(k_near_neib <= n);
+    knn_smile = find(k_near_neib > n);
+    if length(knn_neutral) > length(knn_smile)
+        labels2(j) = 1;
+    else
+        labels2(j) = 2;
+    end
+end
+labels2 = labels2(:,1);
+
+% Count correct labels
+count2 = 0;
+for j=1:length(labels2)
+    if labels2(j) == faceclasstest(j)
+        count2 = count2 + 1;
+    end
+end
+
+%Train KNN predict test set with all illumination in testing
+labels3 = zeros(length(faceclasstest_allillum)); %1 if neutral, 2 if exp
+for j=1:length(faceclasstest_allillum)
+    ytest = test_allillum(j,:);
+    dist_sq = sum((train - ones(size(train,1),1)*ytest).^2,2);
+    [dsort, isort] = sort(dist_sq,'ascend');
+    k_near_neib = isort(1:kNN);
+    knn_neutral = find(k_near_neib <= n); 
+    knn_smile = find(k_near_neib > n);
+    if length(knn_neutral) > length(knn_smile)
+        labels3(j) = 1;
+    else
+        labels3(j) = 2;
+    end
+end
+labels3 = labels3(:,1);
+
+% Count correct labels
+count3 = 0;
+for j=1:length(labels3)
+    if labels3(j) == faceclasstest_allillum(j)
+        count3 = count3 + 1;
+    end
+end
+
+%Train KNN predict test set with illum in training and testing
+labels4 = zeros(length(faceclasstest_someillum)); %1 if neutral, 2 if exp
+for j=1:length(faceclasstest_someillum)
+    ytest = test_someillum(j,:);
+    dist_sq = sum((train_someillum - ones(size(train_someillum,1),1)*ytest).^2,2);
+    [dsort, isort] = sort(dist_sq,'ascend');
+    k_near_neib = isort(1:kNN);
+    knn_neutral = find(k_near_neib <= 460); 
+    knn_smile = find(k_near_neib > 460);
+    if length(knn_neutral) > length(knn_smile)
+        labels4(j) = 1;
+    else
+        labels4(j) = 2;
+    end
+end
+labels4 = labels4(:,1);
+
+% Count correct labels
+count4 = 0;
+for j=1:length(labels4)
+    if labels4(j) == faceclasstest_someillum(j)
+        count4 = count4 + 1;
+    end
+end
+
+% Train KNN with matlab fitcknn package, predict
+% No illum
+mdl1 = fitcknn(train_noillum,faceclasstrain_noillum,"NumNeighbors",kNN);
+predict1 = predict(mdl1, test_noillum);
+
+% Count correct labels
+count1a = 0;
+for j=1:length(predict1)
+    if predict1(j) == faceclasstest_noillum(j)
+        count1a = count1a + 1;
+    end
+end
+
+% Train KNN with matlab fitcknn package, predict
+% illum all in training set
+mdl2 = fitcknn(train_allillum,faceclasstrain_allillum,"NumNeighbors",kNN);
+predict2 = predict(mdl2, test);
+
+% Count Correct Labels
+count2a = 0;
+for j=1:length(predict2)
+    if predict2(j) == faceclasstest(j)
+        count2a = count2a + 1;
+    end
+end
+
+% Train KNN with matlab fitcknn package, predict
+% illum all in testing
+mdl3 = fitcknn(train,faceclasstrain,"NumNeighbors",kNN);
+predict3 = predict(mdl3, test_allillum);
+
+% Count Correct Labels
+count3a = 0;
+for j=1:length(predict3)
+    if predict3(j) == faceclasstest_allillum(j)
+        count3a = count3a + 1;
+    end
+end
+
+% Train KNN with matlab fitcknn package, predict
+% illum all in testing
+mdl4 = fitcknn(train_someillum,faceclasstrain_someillum,"NumNeighbors",kNN);
+predict4 = predict(mdl4, test_someillum);
+
+% Count Correct Labels
+count4a = 0;
+for j=1:length(predict4)
+    if predict4(j) == faceclasstest_someillum(j)
+        count4a = count4a + 1;
+    end
+end
+
+%just displaying the count from the previous section 
+
+"correct labels for first model is " +count1a
+"correct labels for second model is "+ count2a
+"correct labels for third model is "+ count3a
+"correct labels for fourth model is "+ count4a
+
+
+
+
+
+% Get percentage of those correctly labeled KNN
+accuracy_manual_KNN1 = count1 / length(labels1) % No illum
+accuracyKNN1 = count1a / length(predict1) % No illum
+accuracy_manual_KNN2 = count2 /length(labels2) % All illum in training
+accuracyKNN2 = count2a / length(labels2) % All illum in training
+accuracy_manual_KNN3 = count3 / length(labels3) % All illum in testing
+accuracyKNN3 = count3a / length(predict3) % All illum in testing
+accuracy_manual_KNN4 = count4 / length(labels4) % Illum in training and testing
+accuracyKNN4 = count4a / length(predict4) % Illum in training and testing
+
+% this would show the avg accuracy across all the models at the given
+% training size and knn value 
+
+add = (accuracyKNN1+accuracyKNN2+accuracyKNN3+accuracyKNN4)
+avg = add/4
+
+"The model with no illum has an accuracy of  " + accuracy_manual_KNN1
+"The model with illum in training has an accuracy of  " + accuracy_manual_KNN2
+"The model with illum in testing has an accuracy of  " + accuracy_manual_KNN3
+"The model with illum in training and testing has an accuracy of  " + accuracyKNN4
+"The average accuracy for this is "
+
+%in general we got the same answer as the built in function baring one
+%result
+
+%poses stuff 
+size(pose)
+
+% Obtain MLE estimates for dataset based on guassian assumption
+face_neutral = face(:,:,1:3:end);
+face_exp = face(:,:,2:3:end);
+X1 = zeros(200,504);
+X2 = zeros(200,504);
+for j=1:200
+    aux = face_neutral(:,:,j);
+    X1(j,:) = aux(:)';
+    aux = face_exp(:,:,j);
+    X2(j,:) = aux(:)';
+end
+face_noillum = [X1;X2];
+[U,Sig,V] = svd(face_noillum',"econ");
+Y = face_noillum*U(:,1:nPCA);
+neutral_noillum = Y(1:200,:);
+exp_noillum = Y(201:400,:);
+
+mu_neutral_noillum = mean(neutral_noillum,1);
+mu_exp_noillum = mean(exp_noillum,1);
+norm(mu_neutral_noillum - mu_exp_noillum)
+
+sigma_neutral_noillum = cov(neutral_noillum);
+sigma_exp_noillum = cov(exp_noillum);
+
+
+% Define discriminant functions
+invSig1 = inv(sigma_neutral_noillum);
+invSig2 = inv(sigma_exp_noillum);
+mu1 = mu_neutral_noillum';
+mu2 = mu_exp_noillum';
+w0 = .5*(log(det(sigma_exp_noillum)/det(sigma_neutral_noillum))) -.5*(mu1'*invSig1*mu1 - mu2'*invSig2*mu2);
+g = @(x)-.5*x'*(invSig1-invSig2)*x + x'*(invSig1*mu1-invSig2*mu2) + w0;
+
+% Classify illuminated faces
+label_illum = zeros(200,1);
+Y3 = zeros(200,nPCA);
+face_illum = reshape(face_illum, [24 21 200]);
+[U,Sig,V] = svd(face_noillum',"econ");
+for j=1:200
+    aux = face_illum(:,:,j);
+    y = (aux(:)'*U(:,1:nPCA))';
+    Y3(j,:) = y';
+    label_illum(j) = sign(g(y));
+end
+iplus = find(label_illum > 0);
+iminus = find(label_illum < 0);
+fprintf('#iplus = %d, #iminus = %d\n',length(iplus),length(iminus));
+
+
